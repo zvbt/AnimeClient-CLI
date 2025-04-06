@@ -1,0 +1,23 @@
+{
+  "name": "animeclient-cli",
+  "version": "1.0.0",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "keywords": [],
+  "author": "zvbt",
+  "license": "MIT",
+  "description": "An attempt to stream torrent anime in the terminal.",
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "express": "^5.1.0",
+    "feedparser": "^2.2.10",
+    "fs-extra": "^11.3.0",
+    "keypress": "^0.2.1",
+    "node-fetch": "^3.3.2",
+    "torrent-stream": "^1.2.1",
+    "webtorrent": "^2.5.19"
+  }
+}
