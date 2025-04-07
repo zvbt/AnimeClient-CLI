@@ -23,40 +23,41 @@ const rl = readline.createInterface({
 async function fetchRSSFeed(rssUrl) {
     const res = await fetch(rssUrl);
     const body = await res.text();
-
-    if (!res.ok || !body.includes('<?xml')) {
-        console.error("Not valid RSS feed, received:", body.slice(0, 200));
-    }
-
     return body;
 }
 
 
 async function searchAnime(rssUrl, animeName) {
-    const rssData = await fetchRSSFeed(rssUrl);
-    const feedparser = new FeedParser();
-    const animeList = [];
+    try {
+        const rssData = await fetchRSSFeed(rssUrl);
+        const feedparser = new FeedParser();
+        const animeList = [];
 
-    return new Promise((resolve, reject) => {
-        feedparser.on('error', (err) => {
-            console.error('FeedParser error:', err);
-            reject(err);
+        return new Promise((resolve, reject) => {
+            feedparser.on('error', (err) => {
+                // Instead of rejecting, we'll resolve with empty list
+                console.log("\x1b[33m%s\x1b[0m", "⚠️  RSS Feed parsing issue, but continuing search...");
+                resolve([]);
+            });
+
+            feedparser.on('data', (item) => {
+                if (item.title.toLowerCase().includes(animeName.toLowerCase())) {
+                    animeList.push(item);
+                }
+            });
+
+            feedparser.on('end', () => {
+                resolve(animeList);
+            });
+
+            // Wrap string into a stream
+            const stream = Readable.from([rssData]);
+            stream.pipe(feedparser);
         });
-
-        feedparser.on('data', (item) => {
-            if (item.title.toLowerCase().includes(animeName.toLowerCase())) {
-                animeList.push(item);
-            }
-        });
-
-        feedparser.on('end', () => {
-            resolve(animeList);
-        });
-
-        // Wrap string into a stream
-        const stream = Readable.from([rssData]);
-        stream.pipe(feedparser);
-    });
+    } catch (error) {
+        console.log("\x1b[31m%s\x1b[0m", "❌ Error fetching RSS feed");
+        return [];
+    }
 }
 
 
@@ -82,7 +83,7 @@ async function streamTorrent(magnetLink) {
         }
 
         if (episodeFile) {
-            console.log(`Found episode file: ${episodeFile.name}`);
+            // console.log(`Found episode file: ${episodeFile.name}`);
 
             torrent.files.forEach(file => {
                 if (file === episodeFile) {
@@ -101,7 +102,7 @@ async function streamTorrent(magnetLink) {
                     // Once we have received the first chunk, open the video in mpv
                     if (!started) {
                         started = true;
-                        console.log('Torrent started streaming, opening in video player...');
+                        console.log('\x1b[36m%s\x1b[0m', `\nTorrent started streaming, opening in video player...\n`);
                         openInExternalPlayer(`http://localhost:${port}/stream`);
                     }
                 })
@@ -134,7 +135,7 @@ async function streamTorrent(magnetLink) {
                 videoStream.pipe(res);
 
                 res.on('close', () => {
-                    console.log('Client disconnected or stream closed');
+                    console.log('\x1b[36m%s\x1b[0m', `Client disconnected or stream closed\n`);
                     videoStream.destroy();
                 });
 
@@ -157,36 +158,40 @@ async function streamTorrent(magnetLink) {
 function showResolutionMenu(animeList) {
     return new Promise((resolve) => {
         console.clear();
-        console.log('Select anime and episode:');
+        console.log('\x1b[36m%s\x1b[0m', '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        console.log('\x1b[36m%s\x1b[0m', '           Available Anime          ');
+        console.log('\x1b[36m%s\x1b[0m', '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+        
         animeList.forEach((anime, index) => {
-            console.log(`${index + 1}. ${anime.title}`);
+            console.log('\x1b[32m%s\x1b[0m', `${index + 1}. ${anime.title}`);
         });
+        console.log(''); // Empty line for spacing
 
-        rl.question('Choose an anime (number): ', (answer) => {
+        rl.question('\x1b[33mChoose an anime (number): \x1b[0m', (answer) => {
             const selectedIndex = parseInt(answer);
             const selectedAnime = animeList[selectedIndex - 1];
 
-            // display episodes if the anime has a range
             const episodeRange = selectedAnime.title.match(/(\d{2}) ~ (\d{2})/);
             if (episodeRange) {
                 const startEpisode = parseInt(episodeRange[1]);
                 const endEpisode = parseInt(episodeRange[2]);
 
-                console.log('Select an episode:');
+                console.log('\n\x1b[36m%s\x1b[0m', '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+                console.log('\x1b[36m%s\x1b[0m', '          Available Episodes        ');
+                console.log('\x1b[36m%s\x1b[0m', '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+
                 for (let i = startEpisode; i <= endEpisode; i++) {
-                    console.log(`${i}. Episode ${i}`);
+                    console.log('\x1b[32m%s\x1b[0m', `${i}. Episode ${i}`);
                 }
+                console.log(''); // Empty line for spacing
 
-                rl.question('Choose an episode (number): ', (episodeAnswer) => {
+                rl.question('\x1b[33mChoose an episode (number): \x1b[0m', (episodeAnswer) => {
                     const selectedEpisode = parseInt(episodeAnswer);
-
-                    // use the link as is (without appending episode number)
-                    const episodeLink = selectedAnime.link;  // direct torrent link no episode number
-
-                    resolve(episodeLink);  // resolve with the full link to the selected episode
+                    const episodeLink = selectedAnime.link;
+                    resolve(episodeLink);
                 });
             } else {
-                resolve(selectedAnime.link);  // if no range resolve with the full anime link
+                resolve(selectedAnime.link);
             }
         });
     });
@@ -213,36 +218,61 @@ function openInExternalPlayer(videoUrl) {
 async function startApp() {
     const username = process.env.NYAA_USERNAME;
     let animeName = process.argv[2];
+    if (process.env.npm_config_argv) {
+        const npmArgs = JSON.parse(process.env.npm_config_argv);
+        animeName = npmArgs.original.slice(1).join(' ');
+    }
 
+    async function processAnimeSearch(name) {
+        console.log('\x1b[36m%s\x1b[0m', '\nSearching for anime...\n');
+        const query = encodeURIComponent(name);
+        const rssUrl = `https://nyaa.si/?page=rss&u=${username}&c=1_0&f=2&q=${query}`;
+
+        const animeList = await searchAnime(rssUrl, name);
+        if (animeList.length === 0) {
+            console.log("\x1b[31m%s\x1b[0m", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+            console.log("\x1b[31m%s\x1b[0m", `❌ No results found for: ${name}`);
+            console.log("\x1b[31m%s\x1b[0m", "Please check your spelling or try a different search term");
+            console.log("\x1b[31m%s\x1b[0m", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+            return false;
+        } else {
+            const selectedAnimeLink = await showResolutionMenu(animeList);
+            console.log('\x1b[36m%s\x1b[0m', `\nFound torrent file: ${selectedAnimeLink}\n`);
+            await streamTorrent(selectedAnimeLink);
+            app.listen(port, () => {});
+            return true;
+        }
+    }
+
+    // If we have animeName from arguments, process it immediately
+    if (animeName) {
+        const success = await processAnimeSearch(animeName);
+        if (!success) {
+            // If search failed, fall back to interactive mode
+            animeName = null;
+        }
+    }
+
+    // Interactive mode if no arguments or previous search failed
     while (!animeName) {
         animeName = await askQuestion("Enter anime name: ");
         if (!animeName) {
             console.log("No anime name provided. Exiting...");
             return;
         }
-
-        const query = encodeURIComponent(animeName);
-        const rssUrl = `https://nyaa.si/?page=rss&u=${username}&c=1_0&f=2&q=${query}`;
-
-        const animeList = await searchAnime(rssUrl, animeName);
-        if (animeList.length === 0) {
-            console.log("No results found. Please try again.");
+        const success = await processAnimeSearch(animeName);
+        if (!success) {
             animeName = null;
-        } else {
-            const selectedAnimeLink = await showResolutionMenu(animeList);
-            console.log(`Found anime: ${selectedAnimeLink}`);
-            await streamTorrent(selectedAnimeLink);
-
-            app.listen(port, () => {});
-
-            break;
         }
     }
 }
 
 function askQuestion(question) {
-    return new Promise((resolve) => rl.question(question, resolve));
+    return new Promise((resolve) => {
+        rl.question('\x1b[33m' + question + '\x1b[0m', resolve);
+    });
 }
+
 
 startApp();
 
