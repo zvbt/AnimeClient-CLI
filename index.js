@@ -7,9 +7,8 @@ import express from 'express';
 import readline from 'readline';
 import { fileURLToPath } from 'url';
 import { exec } from 'child_process';
-import dotenv from 'dotenv';
+import ini from 'ini';
 import { Readable } from 'stream';
-dotenv.config();
 
 const app = express();
 const port = 3001;
@@ -215,8 +214,30 @@ function openInExternalPlayer(videoUrl) {
         console.log(`Neither mpv/vlc was found, try opening this link in a video player of your choice ${videoUrl}`);
     }
 }
+// Replace dotenv config with ini config
+const configDir = path.join(process.env.USERPROFILE, '.config', 'animeclient-cli');
+const configPath = path.join(configDir, 'config.ini');
+
+// Ensure config directory exists
+fs.ensureDirSync(configDir);
+
+// Create default config if it doesn't exist
+if (!fs.existsSync(configPath)) {
+    const username = await askQuestion("Enter a Nyaa.si user (press Enter for 'Erai-Raws'): ");
+    const defaultConfig = {
+        nyaa: {
+            username: username || 'Erai-Raws'
+        }
+    };
+    fs.writeFileSync(configPath, ini.stringify(defaultConfig));
+    console.log('\x1b[32m%s\x1b[0m', `Config file created at: ${configPath}`);
+}
+
+// Read config
+const config = ini.parse(fs.readFileSync(configPath, 'utf-8'));
+
 async function startApp() {
-    const username = process.env.NYAA_USERNAME;
+    const username = config.nyaa.username;
     let animeName = process.argv[2];
     if (process.env.npm_config_argv) {
         const npmArgs = JSON.parse(process.env.npm_config_argv);
@@ -226,7 +247,7 @@ async function startApp() {
     async function processAnimeSearch(name) {
         console.log('\x1b[36m%s\x1b[0m', '\nSearching for anime...\n');
         const query = encodeURIComponent(name);
-        const rssUrl = `https://nyaa.si/?page=rss&u=${username}&c=1_0&f=2&q=${query}`;
+        const rssUrl = `https://nyaa.si/?page=rss&u=${username}&c=0_0&f=0&q=${query}`;
 
         const animeList = await searchAnime(rssUrl, name);
         if (animeList.length === 0) {
