@@ -19,9 +19,19 @@ git clone https://github.com/zvbtAnimeClient-CLI.git
 cd AnimeClient-CLI
 npm install
 ```
+
+Register animeclient-cli to a gobal command
+```bash
+npm install -g .
+```
 After installation, you can start streaming by running:
 ```bash
-npm start "anime name"
+animeclient "anime name"
 ```
 
 Note: On your first run, it will ask you to enter a Nyaa.si username from one of your favorite uploaders. The default username is "Erai-Raws" but you can change it in the config file located at ~/.config/animeclient-cli.
+
+## Uninstall
+```bash
+npm uninstall -g animeclient-cli
+```
