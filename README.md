@@ -28,6 +28,7 @@ After installation, you can start streaming by running:
 ```bash
 animeclient "anime name"
 ```
+![ezgif-898b0439c1c5b2](https://github.com/user-attachments/assets/9926f96f-b679-4706-bf5e-7c949bcf3793)
 
 Note: On your first run, it will ask you to enter a Nyaa.si username from one of your favorite uploaders. The default username is "Erai-Raws" but you can change it in the config file located at ~/.config/animeclient-cli.
 
