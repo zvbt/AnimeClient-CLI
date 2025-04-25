@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 import fetch from 'node-fetch';
 import FeedParser from 'feedparser';
 import fs from 'fs-extra';
@@ -9,6 +11,7 @@ import { fileURLToPath } from 'url';
 import { exec } from 'child_process';
 import ini from 'ini';
 import { Readable } from 'stream';
+import os from 'os';
 
 const app = express();
 const port = 3001;
@@ -214,30 +217,31 @@ function openInExternalPlayer(videoUrl) {
         console.log(`Neither mpv/vlc was found, try opening this link in a video player of your choice ${videoUrl}`);
     }
 }
-// Replace dotenv config with ini config
-const configDir = path.join(process.env.USERPROFILE, '.config', 'animeclient-cli');
+// os.homedir to work for Windows and Unix
+const configDir = path.join(os.homedir(), '.config', 'animeclient-cli');
 const configPath = path.join(configDir, 'config.ini');
 
-// Ensure config directory exists
 fs.ensureDirSync(configDir);
 
-// Create default config if it doesn't exist
 if (!fs.existsSync(configPath)) {
     const username = await askQuestion("Enter a Nyaa.si user (press Enter for 'Erai-Raws'): ");
+    const quality = await askQuestion("Enter preferred quality 2160p/1440p/1080p/720p (Press Enter for '1080p'): ");
     const defaultConfig = {
         nyaa: {
-            username: username || 'Erai-Raws'
+            username: username || 'Erai-Raws',
+            quality: quality || '1080p'
         }
     };
     fs.writeFileSync(configPath, ini.stringify(defaultConfig));
     console.log('\x1b[32m%s\x1b[0m', `Config file created at: ${configPath}`);
 }
 
-// Read config
+// load config
 const config = ini.parse(fs.readFileSync(configPath, 'utf-8'));
 
 async function startApp() {
     const username = config.nyaa.username;
+    const quality = config.nyaa.quality;
     let animeName = process.argv[2];
     if (process.env.npm_config_argv) {
         const npmArgs = JSON.parse(process.env.npm_config_argv);
@@ -246,7 +250,7 @@ async function startApp() {
 
     async function processAnimeSearch(name) {
         console.log('\x1b[36m%s\x1b[0m', '\nSearching for anime...\n');
-        const query = encodeURIComponent(name);
+        const query = encodeURIComponent(`${name}+${quality}`);
         const rssUrl = `https://nyaa.si/?page=rss&u=${username}&c=0_0&f=0&q=${query}`;
 
         const animeList = await searchAnime(rssUrl, name);
