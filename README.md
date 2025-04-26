@@ -15,7 +15,7 @@ Make sure you have the following installed on your system:
 To install AnimeClient-CLI, run the following commands:
 
 ```bash
-git clone https://github.com/zvbtAnimeClient-CLI.git
+git clone https://github.com/zvbt/AnimeClient-CLI.git
 cd AnimeClient-CLI
 npm install
 ```
